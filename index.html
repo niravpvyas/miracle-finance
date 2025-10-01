@@ -18,10 +18,15 @@
         <button class="tab active" data-loan="home">Home Loan</button>
         <button class="tab" data-loan="personal">Personal Loan</button>
         <button class="tab" data-loan="car">Car Loan</button>
+  <button class="tab" data-loan="business">Business Loan</button>
       </div>
       <div class="calculator">
         <div class="row-full">
           <div class="inputs">
+            <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 16px;">
+              <input type="text" id="customerName" placeholder="Enter customer name - OPTIONAL (This name will appear on your EMI report)" style="flex:1; min-width: 260px; font-size: 18px; padding: 8px 16px; border-radius: 6px; border: 1px solid #ccc;" />
+            </div>            
+            <hr style="margin: 20px 0 20px 0" />
             <label
               >Loan Amount
               <input
@@ -414,7 +419,7 @@
         margin-bottom: 20px;
       }
       .tab {
-        padding: 10px 30px;
+        padding: 10px 10px;
         border: none;
         background: #eee;
         cursor: pointer;
@@ -593,9 +598,10 @@
       }
 
       const loanConfigs = {
-        home: { min: 10000, max: 20000000, step: 1000, default: 100000 },
-        personal: { min: 10000, max: 1000000, step: 1000, default: 50000 },
-        car: { min: 50000, max: 5000000, step: 5000, default: 300000 },
+  home: { min: 10000, max: 20000000, step: 1000, default: 100000 },
+  personal: { min: 10000, max: 1000000, step: 1000, default: 50000 },
+  car: { min: 50000, max: 5000000, step: 5000, default: 300000 },
+  business: { min: 100000, max: 10000000, step: 10000, default: 200000 },
       };
 
       let currentLoanType = "home";
@@ -842,9 +848,10 @@
 
       // Tab switching logic
       const loanTypeInfo = {
-        home: { text: "EMI Calculator for Home Loan", emoji: "🏠" },
-        personal: { text: "EMI Calculator for Personal Loan", emoji: "💼" },
-        car: { text: "EMI Calculator for Car Loan", emoji: "🚗" },
+  home: { text: "EMI Calculator for Home Loan", emoji: "🏠" },
+  personal: { text: "EMI Calculator for Personal Loan", emoji: "💼" },
+  car: { text: "EMI Calculator for Car Loan", emoji: "🚗" },
+  business: { text: "EMI Calculator for Business Loan", emoji: "🏢" },
       };
       document.querySelectorAll(".tab").forEach((tab) => {
         tab.addEventListener("click", function () {
@@ -944,135 +951,50 @@
           doc.setFont("helvetica", "bold");
           doc.setFontSize(20);
           doc.text("EMI Calculator Report", 15, 20);
-          doc.setFontSize(12);
-          doc.setFont("helvetica", "normal");
+          // Add customer name if present
+          var customerName = document.getElementById("customerName").value.trim();
+          let y = 26;
+          if (customerName) {
+            doc.setFontSize(13);
+            doc.setFont("helvetica", "bold");
+            doc.text(`Customer Name: ${customerName}`, 15, y);
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "normal");
+            y += 8;
+          }
           doc.text(
             `Loan Type: ${
               currentLoanType.charAt(0).toUpperCase() + currentLoanType.slice(1)
             } Loan`,
             15,
-            30
+            y
           );
+          y += 8;
           doc.text(
             `Loan Amount: ${getLoanAmountValue().toLocaleString("en-IN")}`,
             15,
-            38
+            y
           );
+          y += 8;
           doc.text(
             `Interest Rate: ${document.getElementById("interestRate").value}%`,
             15,
-            46
+            y
           );
+          y += 8;
           doc.text(
             `Tenure: ${document.getElementById("loanTenure").value} years`,
             15,
-            54
+            y
           );
+          y += 8;
           doc.setFont("helvetica", "bold");
           doc.text(
-            `EMI: ${document.getElementById("emiValue").textContent.replace(/[^\d,.]/g, "")}`,
+            `EMI: ${document.getElementById("emiValue").textContent.replace(/[^0-9,.]/g, "")}`,
             15,
-            62
+            y
           );
+          y += 8;
           doc.setFont("helvetica", "normal");
           doc.text(
-            `Total Interest: ${document.getElementById("totalInterest").textContent.replace(/[^\d,.]/g, "")}`,
-            15,
-            70
-          );
-          doc.text(
-            `Total Payment: ${document.getElementById("totalPayment").textContent.replace(/[^\d,.]/g, "")}`,
-            15,
-            78
-          );
-
-          // Add summary section
-          doc.setFontSize(11);
-          doc.setFont("helvetica", "italic");
-          doc.text("This report summarizes your loan EMI schedule and total payments.", 15, 86);
-          doc.text("Use this table for financial planning and record keeping.", 15, 92);
-          doc.setFont("helvetica", "normal");
-
-          // Prepare table data for autoTable, removing '₹' symbol from all cells
-          var tableHeaders = [
-            "Year",
-            "Calendar Year",
-            "Principal (A)",
-            "Interest (B)",
-            "Total Payment (A+B)",
-            "Balance",
-            "Loan Paid To Date"
-          ];
-          var tableRows = Array.from(
-            document.querySelectorAll("#scheduleTable tbody tr")
-          ).map((tr) => Array.from(tr.children).map((td) => td.textContent.replace(/₹/g, "").trim()));
-
-          doc.autoTable({
-            head: [tableHeaders],
-            body: tableRows,
-            startY: 105, // Increased space after summary
-            theme: 'grid',
-            headStyles: { fillColor: [66, 133, 244], textColor: 255, fontStyle: 'bold' },
-            styles: { font: 'helvetica', fontSize: 10 },
-            margin: { left: 15, right: 15 },
-            didDrawPage: function (data) {
-              // Optionally add page numbers or other info
-            }
-          });
-
-          // Duplicate tableHeaders/tableRows and autoTable block removed to fix redeclaration error
-          doc.save("EMI_Calculator_Report.pdf");
-        });
-
-      // Initial values
-      window.onload = function () {
-        // Set default heading
-        document.getElementById(
-          "mainHeading"
-        ).textContent = `${loanTypeInfo.home.text} ${loanTypeInfo.home.emoji}`;
-        // Initial slider ticks
-        createSliderTicks(
-          "loanAmountLabels",
-          parseInt(document.getElementById("loanAmountRange").min),
-          parseInt(document.getElementById("loanAmountRange").max),
-          parseInt(document.getElementById("loanAmountRange").step),
-          (v) => formatAmountAbbr(v),
-          6
-        );
-        createSliderTicks(
-          "interestRateLabels",
-          parseFloat(document.getElementById("interestRate").min),
-          parseFloat(document.getElementById("interestRate").max),
-          parseFloat(document.getElementById("interestRate").step),
-          (v) => v + "%",
-          6
-        );
-        createSliderTicks(
-          "loanTenureLabels",
-          parseInt(document.getElementById("loanTenure").min),
-          parseInt(document.getElementById("loanTenure").max),
-          parseInt(document.getElementById("loanTenure").step),
-          (v) => v + " Yr",
-          6
-        );
-        updateValues();
-      };
-
-      // Update slider labels on tab switch
-      document.querySelectorAll(".tab").forEach((tab) => {
-        tab.addEventListener("click", function () {
-          // ...existing code...
-          let config = loanConfigs[currentLoanType];
-          createSliderTicks(
-            "loanAmountLabels",
-            config.min,
-            config.max,
-            config.step,
-            (v) => formatAmountAbbr(v),
-            6
-          );
-        });
-      });
-    </script>
-  </body>
-</html>
+            `Total Interest: ${document.getElementById("totalInterest").textContent.replace(/[^
