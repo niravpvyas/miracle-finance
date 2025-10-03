@@ -12,6 +12,7 @@
     </div>
     <div id="mainContent" style="display:none;">
       <div class="page-title">✨ Miracle Financial Services</div>
+      
       <div class="container">
       <h1 id="mainHeading">EMI Calculator for Home Loan 🏠</h1>
       <div class="tabs">
@@ -32,7 +33,7 @@
               <input
                 type="text"
                 id="loanAmount"
-                value="1,00,000"
+                value="10,000"
                 min="10000"
                 max="10000000"
                 step="1000"
@@ -73,18 +74,18 @@
               <input
                 type="number"
                 id="loanTenure"
-                value="20"
+                value="12"
                 min="1"
-                max="30"
+                max="360"
                 step="1"
-              />Years
+              />Months
             </label>
             <input
               type="range"
               id="loanTenureRange"
-              value="20"
+              value="240"
               min="1"
-              max="30"
+              max="360"
               step="1"
             />
             <div class="slider-ticks" id="loanTenureLabels"></div>
@@ -120,7 +121,7 @@
           <thead>
             <tr>
               <th>#</th>
-              <th>Year</th>
+              <th>Month</th>
               <th>Principal (A)</th>
               <th>Interest (B)</th>
               <th>Total Payment (A+B)</th>
@@ -553,6 +554,7 @@
         });
       });
       // EMI Calculator Logic & Chart Integration
+      // Set report generation date in UI
       // Helper to create slider labels
       function createSliderLabels(id, min, max, step, formatter, count = 5) {
         const container = document.getElementById(id);
@@ -657,8 +659,8 @@
       function updateValues() {
         const P = getLoanAmountValue();
         const r = parseFloat(document.getElementById("interestRate").value);
-        const years = parseInt(document.getElementById("loanTenure").value);
-        const n = years * 12;
+        const months = parseInt(document.getElementById("loanTenure").value);
+        const n = months;
         const emi = calculateEMI(P, r, n);
         const totalPayment = emi * n;
         const totalInterest = totalPayment - P;
@@ -683,8 +685,8 @@
           numberToWords(Math.round(totalPayment));
 
         updatePieChart(P, totalInterest);
-        updateScheduleTable(P, r, years, emi);
-        updateBarChart(P, r, years, emi);
+        updateScheduleTable(P, r, months, emi);
+        updateBarChart(P, r, months, emi);
       }
 
       function updatePieChart(principal, interest) {
@@ -720,7 +722,7 @@
         });
       }
 
-      function updateBarChart(P, r, years, emi) {
+      function updateBarChart(P, r, months, emi) {
         const ctx = document.getElementById("barChart").getContext("2d");
         if (barChart) barChart.destroy();
         let balance = P;
@@ -729,21 +731,24 @@
         let principalData = [];
         let interestData = [];
         let balanceData = [];
-        for (let y = 1; y <= years; y++) {
-          let yearPrincipal = 0,
-            yearInterest = 0;
-          for (let m = 1; m <= 12; m++) {
-            let interestComp = balance * monthlyRate;
-            let principalComp = emi - interestComp;
-            yearPrincipal += principalComp;
-            yearInterest += interestComp;
-            balance -= principalComp;
-            if (balance < 0) balance = 0;
-          }
-          labels.push(new Date().getFullYear() + y - 1);
-          principalData.push(Math.round(yearPrincipal));
-          interestData.push(Math.round(yearInterest));
-          balanceData.push(Math.round(balance));
+        // Start from current month/year
+        let now = new Date();
+        let startMonth = now.getMonth(); // 0-based
+        let startYear = now.getFullYear() % 100; // last two digits
+        let monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        for (let m = 1; m <= months; m++) {
+          let interestComp = balance * monthlyRate;
+          let principalComp = emi - interestComp;
+          let monthIndex = (startMonth + m - 1) % 12;
+          let yearOffset = Math.floor((startMonth + m - 1) / 12);
+          let yearDigit = (startYear + yearOffset) % 100;
+          let monthNameYear = `${monthNames[monthIndex]}-${yearDigit.toString().padStart(2, '0')}`;
+          labels.push(monthNameYear);
+          principalData.push(Math.round(principalComp));
+          interestData.push(Math.round(interestComp));
+          balanceData.push(Math.round(balance - principalComp));
+          balance -= principalComp;
+          if (balance < 0) balance = 0;
         }
         barChart = new Chart(ctx, {
           type: "bar",
@@ -814,35 +819,39 @@
         });
       }
 
-      function updateScheduleTable(P, r, years, emi) {
+      function updateScheduleTable(P, r, months, emi) {
         let balance = P;
         let monthlyRate = r / 12 / 100;
         let tbody = document.querySelector("#scheduleTable tbody");
         tbody.innerHTML = "";
         let paidToDate = 0;
-        for (let y = 1; y <= years; y++) {
-          let yearPrincipal = 0,
-            yearInterest = 0;
-          for (let m = 1; m <= 12; m++) {
-            let interestComp = balance * monthlyRate;
-            let principalComp = emi - interestComp;
-            yearPrincipal += principalComp;
-            yearInterest += interestComp;
-            balance -= principalComp;
-            if (balance < 0) balance = 0;
-          }
-          paidToDate += yearPrincipal;
+        // Start from current month/year
+        let now = new Date();
+        let startMonth = now.getMonth(); // 0-based
+        let startYear = now.getFullYear() % 100; // last two digits
+        for (let m = 1; m <= months; m++) {
+          let interestComp = balance * monthlyRate;
+          let principalComp = emi - interestComp;
+          paidToDate += principalComp;
           let percentPaid = ((paidToDate / P) * 100).toFixed(2);
+          // Calculate month name and year digit
+          let monthIndex = (startMonth + m - 1) % 12;
+          let yearOffset = Math.floor((startMonth + m - 1) / 12);
+          let yearDigit = (startYear + yearOffset) % 100;
+          let monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          let monthNameYear = `${monthNames[monthIndex]}-${yearDigit.toString().padStart(2, '0')}`;
           let row = `<tr>
-            <td>${y}</td>
-            <td>${new Date().getFullYear() + y - 1}</td>
-            <td>${formatINR(Math.round(yearPrincipal))}</td>
-            <td>${formatINR(Math.round(yearInterest))}</td>
-            <td>${formatINR(Math.round(yearPrincipal + yearInterest))}</td>
-            <td>${formatINR(Math.round(balance))}</td>
+            <td>${m}</td>
+            <td>${monthNameYear}</td>
+            <td>${formatINR(Math.round(principalComp))}</td>
+            <td>${formatINR(Math.round(interestComp))}</td>
+            <td>${formatINR(Math.round(principalComp + interestComp))}</td>
+            <td>${formatINR(Math.round(balance - principalComp))}</td>
             <td>${percentPaid}%</td>
           </tr>`;
           tbody.innerHTML += row;
+          balance -= principalComp;
+          if (balance < 0) balance = 0;
         }
       }
 
@@ -973,13 +982,13 @@
           
           // doc.setFontSize(20);
           // doc.text('EMI report as below:', 15, 32);
-          doc.setFontSize(13); // Set a consistent, smaller font size for all main report rows
+          doc.setFontSize(11); // Set a consistent, smaller font size for all main report rows
           // Add customer name if present
           var customerName = document.getElementById("customerName").value.trim().toUpperCase();
           let y = 38;
           if (customerName) {
             doc.setFontSize(13);
-            doc.setFont("helvetica", "normal");
+            doc.setFont("helvetica", "bold");
             doc.text(`Customer Name: ${customerName}`, 15, y);
             doc.setFontSize(12);
             doc.setFont("helvetica", "normal");
@@ -993,11 +1002,18 @@
             y
           );
           y += 8;
-          doc.text(
-            `Loan Amount: ${getLoanAmountValue().toLocaleString("en-IN")}`,
-            15,
-            y
-          );
+          // Loan Amount with value-in-words in grey italic
+          let loanAmountStr = `Loan Amount: ${getLoanAmountValue().toLocaleString("en-IN")}`;
+          doc.text(loanAmountStr, 15, y);
+          let loanAmountWords = `(${numberToWords(getLoanAmountValue())})`;
+          let offsetX = doc.getTextWidth(loanAmountStr) + 17;
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(10);
+          doc.setTextColor(120);
+          doc.text(loanAmountWords, offsetX, y);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(11);
+          doc.setTextColor(0);
           y += 8;
           doc.text(
             `Interest Rate: ${document.getElementById("interestRate").value}%`,
@@ -1006,30 +1022,51 @@
           );
           y += 8;
           doc.text(
-            `Tenure: ${document.getElementById("loanTenure").value} years`,
+            `Tenure: ${document.getElementById("loanTenure").value} months`,
             15,
             y
           );
           y += 8;
           doc.setFont("helvetica", "normal");
-          doc.text(
-            `EMI: ${document.getElementById("emiValue").textContent.replace(/[^0-9,.]/g, "")}`,
-            15,
-            y
-          );
+          // EMI with value-in-words in grey italic
+          let emiStr = `EMI: ${document.getElementById("emiValue").textContent.replace(/[^0-9,.]/g, "")}`;
+          doc.text(emiStr, 15, y);
+          let emiWords = `(${numberToWords(Math.round(Number(document.getElementById("emiValue").textContent.replace(/[^0-9]/g, ""))))})`;
+          offsetX = doc.getTextWidth(emiStr) + 17;
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(10);
+          doc.setTextColor(120);
+          doc.text(emiWords, offsetX, y);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(11);
+          doc.setTextColor(0);
           y += 8;
           doc.setFont("helvetica", "normal");
-          doc.text(
-            `Total Interest: ${document.getElementById("totalInterest").textContent.replace(/[^ C0-9,.]/g, "")}`,
-            15,
-            y
-          );
+          // Total Interest with value-in-words in grey italic
+          let interestStr = `Total Interest: ${document.getElementById("totalInterest").textContent.replace(/[^0-9,.]/g, "")}`;
+          doc.text(interestStr, 15, y);
+          let interestWords = `(${numberToWords(Math.round(Number(document.getElementById("totalInterest").textContent.replace(/[^0-9]/g, ""))))})`;
+          offsetX = doc.getTextWidth(interestStr) + 17;
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(10);
+          doc.setTextColor(120);
+          doc.text(interestWords, offsetX, y);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(11);
+          doc.setTextColor(0);
           y += 8;
-          doc.text(
-            `Total Payment: ${document.getElementById("totalPayment").textContent.replace(/[^ C0-9,.]/g, "")}`,
-            15,
-            y
-          );
+          // Total Payment with value-in-words in grey italic
+          let paymentStr = `Total Payment: ${document.getElementById("totalPayment").textContent.replace(/[^0-9,.]/g, "")}`;
+          doc.text(paymentStr, 15, y);
+          let paymentWords = `(${numberToWords(Math.round(Number(document.getElementById("totalPayment").textContent.replace(/[^0-9]/g, ""))))})`;
+          offsetX = doc.getTextWidth(paymentStr) + 17;
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(10);
+          doc.setTextColor(120);
+          doc.text(paymentWords, offsetX, y);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(11);
+          doc.setTextColor(0);
           y += 8;
           // Add summary section
           doc.setFontSize(11);
@@ -1041,32 +1078,74 @@
 
           // Prepare table data for autoTable, removing '₹' symbol from all cells
           var tableHeaders = [
-            "Year",
-            "Calendar Year",
+            "#",
+            "Month",
             "Principal (A)",
             "Interest (B)",
             "Total Payment (A+B)",
             "Balance",
             "Loan Paid To Date"
           ];
-          var tableRows = Array.from(
-            document.querySelectorAll("#scheduleTable tbody tr")
-          ).map((tr) => Array.from(tr.children).map((td) => td.textContent.replace(/₹/g, "").trim()));
+          // Generate tableRows with serial number and monthName-yearDigit for PDF (same as UI)
+          let pdfRows = [];
+          let balance = getLoanAmountValue();
+          let monthlyRate = parseFloat(document.getElementById("interestRate").value) / 12 / 100;
+          let months = parseInt(document.getElementById("loanTenure").value);
+          let emi = calculateEMI(balance, parseFloat(document.getElementById("interestRate").value), months);
+          let paidToDate = 0;
+          let now = new Date();
+          let startMonth = now.getMonth();
+          let startYear = now.getFullYear() % 100;
+          let monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          for (let m = 1; m <= months; m++) {
+            let interestComp = balance * monthlyRate;
+            let principalComp = emi - interestComp;
+            paidToDate += principalComp;
+            let percentPaid = ((paidToDate / getLoanAmountValue()) * 100).toFixed(2);
+            let monthIndex = (startMonth + m - 1) % 12;
+            let yearOffset = Math.floor((startMonth + m - 1) / 12);
+            let yearDigit = (startYear + yearOffset) % 100;
+            let monthNameYear = `${monthNames[monthIndex]}-${yearDigit.toString().padStart(2, '0')}`;
+            pdfRows.push([
+              m,
+              monthNameYear,
+              Math.round(principalComp).toLocaleString("en-IN"),
+              Math.round(interestComp).toLocaleString("en-IN"),
+              Math.round(principalComp + interestComp).toLocaleString("en-IN"),
+              Math.round(balance - principalComp).toLocaleString("en-IN"),
+              percentPaid + "%"
+            ]);
+            balance -= principalComp;
+            if (balance < 0) balance = 0;
+          }
 
           doc.autoTable({
             head: [tableHeaders],
-            body: tableRows,
+            body: pdfRows,
             startY: 105, // Increased space after summary
             theme: 'grid',
             headStyles: { fillColor: [66, 133, 244], textColor: 255, fontStyle: 'bold' },
             styles: { font: 'helvetica', fontSize: 10 },
             margin: { left: 15, right: 15 },
             didDrawPage: function (data) {
-              // Optionally add page numbers or other info
+              // Footer: Page X of Y
+              var pageWidth = doc.internal.pageSize.getWidth();
+              var pageHeight = doc.internal.pageSize.getHeight();
+              var pageCount = doc.internal.getNumberOfPages();
+              var pageCurrent = doc.internal.getCurrentPageInfo().pageNumber;
+              doc.setFontSize(10);
+              doc.setTextColor(120);
+              doc.text(`Page ${pageCurrent} of ${pageCount}`, pageWidth/2, pageHeight - 8, { align: 'center' });
             }
           });
-          
-          doc.save("EMI_Calculator_Report.pdf");
+
+          let fileName = `Miracle-Finance-EMI-Report`;
+          if (customerName) {
+            fileName += `-${customerName}`;
+          }
+          fileName += `.pdf`;
+          doc.save(fileName);
+
         });
 
       // Initial values
@@ -1097,7 +1176,7 @@
           parseInt(document.getElementById("loanTenure").min),
           parseInt(document.getElementById("loanTenure").max),
           parseInt(document.getElementById("loanTenure").step),
-          (v) => v + " Yr",
+          (v) => v + " M",
           6
         );
         updateValues();
